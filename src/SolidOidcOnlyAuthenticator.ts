@@ -17,6 +17,10 @@ export class SolidOidcOnlyAuthenticator {
     this.oidcSite = oidcSite;
   }
 
+  getOidcSite(): string {
+    return this.oidcSite;
+  }
+
   public async authenticate(): Promise<{ accessToken: string, dpopProof?: string }> {
     //this is where we start a local http server that will accept the authorization code sent by the server
     const server = new AuthorizationCodeCaptureServer();

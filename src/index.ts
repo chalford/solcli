@@ -3,8 +3,18 @@
 import { Command } from "commander";
 import { SolidClient } from "./SolidClient";
 import { SolidOidcOnlyAuthenticator } from "./SolidOidcOnlyAuthenticator";
+import { statSync, mkdirSync } from "fs";
+import { homedir } from "os";
+
 //import * as process from 'process';
 const program = new Command();
+const home = homedir();
+const tokenDir = `${home}/.solcli`;
+try {
+  statSync(tokenDir);
+} catch (err) {
+  mkdirSync(tokenDir);
+}
 
 program
   .name('solcli')
@@ -17,8 +27,7 @@ program
   .description('get a resource')
   .argument('<url>', 'the resource URL to retrieve')
   .action(async (url) =>  {
-    console.log('get', url);
-    const solidClient = new SolidClient("abc", "def");
+    const solidClient = new SolidClient(tokenDir);
     const { body } = await solidClient.get(url);
     process.stdout.write(body);
   });
@@ -28,9 +37,8 @@ program
   .description('login to a specific solid pod')
   .argument('<url>', 'the pod URL to login for')
   .action((url) => {
-    console.log('login', url);
-    const solidClient = new SolidClient();
-    solidClient.get(url);
+    const solidClient = new SolidClient(tokenDir);
+    // solidClient.get(url);
   });
 
 program
@@ -38,7 +46,6 @@ program
   .description('choose and login to a solid pod by first authenticating with a SOLID OIDC server')
   .argument('<url>', 'the pod URL to login for')
   .action((url) => {
-    console.log('login', url);
     const authenticator = new SolidOidcOnlyAuthenticator(url);
   });
 
@@ -47,7 +54,6 @@ program
   .description('choose and login to a solid pod by first retrieving a WebID')
   .argument('<url>', 'the pod URL to login for')
   .action((url) => {
-    console.log('login', url);
     const authenticator = new SolidOidcOnlyAuthenticator(url);
   });
 

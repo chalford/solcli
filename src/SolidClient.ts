@@ -1,27 +1,38 @@
-import fetch, { Response } from "node-fetch";
+import fetch, { Headers, Response } from "node-fetch";
 import { SolidOidcOnlyAuthenticator } from "./SolidOidcOnlyAuthenticator";
+import { TokenEntry, TokenStore } from "./TokenStore";
 
 export class SolidClient {
-  private accessToken?: string;
-  private dpopProof?: string;
+  private tokenStore: TokenStore;
 
-  constructor();
-  constructor(accessToken: string, dpopProof: string);
-  constructor(accessToken?: string, dpopProof?: string) {
-    if (accessToken && dpopProof) {
-      this.accessToken = accessToken;
-      this.dpopProof = dpopProof;
-    }
+  constructor(tokenStoreDirectory: string) {
+    this.tokenStore = new TokenStore(tokenStoreDirectory);
   }
 
-  public async get(url: any): Promise<{ body: string, headers: {} }> {
+  public async loginPod(podUrl: string): Promise<void> {
+    await this.get(podUrl);
+  }
+
+  public async get(url: string): Promise<{ body: string, headers: {} }> {
+    return this.getRecurse(0, url);
+  }
+
+  private async getRecurse(counter: number, url: string): Promise<{ body: string, headers: {} }> {
+    if (counter >= 3) {
+      throw new Error("Get attempt failed after 3 attempts");
+    }
     // Here need to use Bearer auth on the fetch URL
-    const response = await fetch(url);
+    const parsedUrl = new URL(url);
+    const accessToken = await this.tokenStore.getAccessToken(parsedUrl.hostname);
+    const headers = new Headers();
+    if (accessToken) {
+      headers.set("Authorization", "Bearer " + accessToken.accessToken);
+    }
+    const response = await fetch(parsedUrl, { headers });
     switch (response.status) {
       case 401:
-        await this.reauthenticate(response);
-        throw new Error("Unimplemented bearer authentication");
-        return this.get(url);
+        await this.authenticate(response);
+        return this.getRecurse(counter + 1, url);
     }
     return {
       body: await response.text(),
@@ -29,15 +40,30 @@ export class SolidClient {
     }
   }
 
-  public async reauthenticate(response: Response) {
-    const authenticateHeader = response.headers.get('www-authenticate')
+  public async authenticate(response: Response, token?: TokenEntry) {
+    const url = new URL(response.url);
+    const authenticateHeader = response.headers.get('www-authenticate');
     if (authenticateHeader != null) {
-      if (authenticateHeader.includes('DPoP realm="Inrupt Enterprise Solid Server"')) {
-        console.log('Found inrupt header, will authenicate with broker.pod.inrupt.com');
-        const authenticator = new SolidOidcOnlyAuthenticator('https://broker.pod.inrupt.com/');
+      const bearerMatch = authenticateHeader.match(/Bearer(?: realm="(.+?)")?/);
+      if (bearerMatch) {
+        let oidcProvider: string;
+        const realm = bearerMatch[1]
+        if (realm) {
+          switch (realm) {
+            case "Inrupt Enterprise Solid Server":
+              oidcProvider = 'https://broker.pod.inrupt.com/';
+              break;
+            default:
+              throw new Error(`Authentication realm: ${realm} unknown`);
+          }
+        } else if (token && token.oidcUrl) {
+          oidcProvider = token.oidcUrl;
+        } else {
+          throw new Error("Failed to discover authorization server");
+        }
+        const authenticator = new SolidOidcOnlyAuthenticator(oidcProvider);
         const authenticationResp = await authenticator.authenticate();
-        this.accessToken = authenticationResp.accessToken;
-        this.dpopProof = authenticationResp.dpopProof;
+        await this.tokenStore.storeAccessToken(url.hostname, authenticationResp.accessToken, authenticator.getOidcSite());
       } else {
         throw new Error("Unsupported www-authenticate header: " + authenticateHeader);
       }
