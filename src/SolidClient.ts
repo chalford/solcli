@@ -19,7 +19,7 @@ export class SolidClient {
 
   private async getRecurse(counter: number, url: string): Promise<{ body: string, headers: {} }> {
     if (counter >= 3) {
-      throw new Error("Get attempt failed after 3 attempts");
+      throw new Error("Get failed after 3 attempts");
     }
     // Here need to use Bearer auth on the fetch URL
     const parsedUrl = new URL(url);
@@ -31,7 +31,7 @@ export class SolidClient {
     const response = await fetch(parsedUrl, { headers });
     switch (response.status) {
       case 401:
-        await this.authenticate(response);
+        await this.authenticate(response, accessToken);
         return this.getRecurse(counter + 1, url);
     }
     return {
@@ -43,7 +43,7 @@ export class SolidClient {
   public async authenticate(response: Response, token?: TokenEntry) {
     const url = new URL(response.url);
     const authenticateHeader = response.headers.get('www-authenticate');
-    if (authenticateHeader != null) {
+    if (authenticateHeader) {
       const bearerMatch = authenticateHeader.match(/Bearer(?: realm="(.+?)")?/);
       if (bearerMatch) {
         let oidcProvider: string;

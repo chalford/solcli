@@ -19,13 +19,13 @@ export class TokenStore {
   //   await writeFile(`${this.storeDirectory}/${encodedUrl}`, JSON.stringify(dpopProof))
   // }
 
-  public async getAccessToken(site: string): Promise<TokenEntry | null> {
+  public async getAccessToken(site: string): Promise<TokenEntry | undefined> {
     const encodedUrl = Buffer.from(site).toString('base64');
     try {
       const tokenBuffer = await readFile(`${this.storeDirectory}/${encodedUrl}`);
       return JSON.parse(tokenBuffer.toString());
     } catch (err) {
-      return null;
+      return undefined;
     }
   }
 }
