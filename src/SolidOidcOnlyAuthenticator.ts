@@ -52,15 +52,14 @@ export class SolidOidcOnlyAuthenticator {
 
     const state = await generateRandomBase64String(256);
 
-    var url = buildAuthCodeResquestUrl(
+    // Open a web browser with the auth code request to start the flow
+    await open(buildAuthCodeResquestUrl(
       discoveryMetadata.authorization_endpoint,
       registration.client_id,
       registration.redirect_uris[0],
       codeChallenge,
       state
-    );
-    // Open a web browser with the auth code request to start the flow
-    await open(url.toString());
+    ));
     const authorizationCode = await server.getAuthorizationCodeResponse();
     if (authorizationCode.state !== state) {
       throw new Error(`State from ID server (${authorizationCode.state}) didn't match the state created for the request(${state})`);
@@ -98,7 +97,7 @@ function buildAuthCodeResquestUrl(authEndpoint: string, clientId: string, redire
   url.searchParams.append('code_challenge', codeChallenge.challenge);
   url.searchParams.append('code_challenge_method', codeChallenge.method);
   url.searchParams.append('state', state);
-  return url;
+  return url.toString();
 }
 
 async function retrieveTokens(

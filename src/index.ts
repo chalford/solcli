@@ -38,23 +38,25 @@ program
   .argument('<url>', 'the pod URL to login for')
   .action((url) => {
     const solidClient = new SolidClient(tokenDir);
-    // solidClient.get(url);
+    solidClient.get(url);
   });
 
 program
   .command('login-oidc')
   .description('choose and login to a solid pod by first authenticating with a SOLID OIDC server')
-  .argument('<url>', 'the pod URL to login for')
+  .argument('<url>', 'the SOLID OIDC URL to login with')
   .action((url) => {
-    const authenticator = new SolidOidcOnlyAuthenticator(url);
+    throw new Error("login-oidc unimplemented");
+    //const authenticator = new SolidOidcOnlyAuthenticator(url);
   });
 
 program
   .command('login-webid')
   .description('choose and login to a solid pod by first retrieving a WebID')
-  .argument('<url>', 'the pod URL to login for')
+  .argument('<url>', 'the WebID URL to pick SOLID pods from')
   .action((url) => {
-    const authenticator = new SolidOidcOnlyAuthenticator(url);
+    throw new Error("login-webid unimplemented");
+    //const authenticator = new SolidOidcOnlyAuthenticator(url);
   });
 
 program.parse();
